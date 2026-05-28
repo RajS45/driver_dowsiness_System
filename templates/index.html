@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Driver Safety Cockpit</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-dark: #090d16;
+            --panel-bg: rgba(17, 24, 39, 0.7);
+            --border-glow: rgba(56, 189, 248, 0.2);
+            --accent-safe: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-danger: #ef4444;
+            --text-light: #f8fafc;
+        }
+
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: radial-gradient(circle at center, #1e1b4b 0%, var(--bg-dark) 70%);
+            color: var(--text-light);
+            margin: 0;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin: 0 0 5px 0;
+            background: linear-gradient(to right, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            color: #64748b;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 25px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .glass-card {
+            background: var(--panel-bg);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(16px);
+            border-radius: 20px;
+            padding: 20px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .video-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #020617;
+            border: 2px solid var(--border-glow);
+            overflow: hidden;
+        }
+
+        .video-feed {
+            width: 100%;
+            height: auto;
+            max-height: 480px;
+            border-radius: 12px;
+            object-fit: cover;
+        }
+
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Interactive Status Module */
+        .status-card {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-left: 6px solid var(--accent-safe);
+        }
+
+        .status-card.state-drowsy {
+            border-left-color: var(--accent-danger);
+            background: rgba(239, 68, 68, 0.1);
+            animation: pulse-danger 1.5s infinite ease-in-out;
+        }
+
+        .status-card.state-yawn {
+            border-left-color: var(--accent-warning);
+            background: rgba(245, 158, 11, 0.1);
+        }
+
+        .icon-container svg {
+            width: 42px;
+            height: 42px;
+            fill: none;
+            stroke-width: 2;
+            transition: all 0.3s ease;
+        }
+
+        .icon-safe { stroke: var(--accent-safe); }
+        .icon-warn { stroke: var(--accent-warning); }
+        .icon-danger { stroke: var(--accent-danger); }
+
+        .status-text-container {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #94a3b8;
+            margin-bottom: 2px;
+        }
+
+        .value {
+            font-size: 1.6rem;
+            font-weight: 700;
+        }
+
+        /* Telemetry Metric Displays */
+        .metric-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .metric-box {
+            text-align: center;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .metric-num {
+            font-size: 2.2rem;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            margin-top: 5px;
+            color: #38bdf8;
+        }
+
+        .chart-card {
+            padding: 15px;
+            height: 180px;
+        }
+
+        /* Keyframe Animations */
+        @keyframes pulse-danger {
+            0%, 100% { box-shadow: 0 0 0 rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.4); }
+            50% { box-shadow: 0 0 30px rgba(239, 68, 68, 0.5); border-color: rgba(239, 68, 68, 1); }
+        }
+
+        .animated-pulse {
+            animation: ring 2s infinite ease-in-out;
+        }
+
+        @keyframes ring {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>NEURAL SAFETY COCKPIT</h1>
+        <div class="subtitle">Predictive Real-Time Driver Biometrics</div>
+    </header>
+
+    <div class="dashboard-grid">
+        <div class="glass-card video-container" id="video-wrapper">
+            <img src="/video_feed" class="video-feed" alt="Stream Connection Stalled">
+        </div>
+
+        <div class="right-panel">
+            
+            <div class="glass-card status-card" id="master-status-card">
+                <div class="icon-container" id="dynamic-icon">
+                    <svg class="icon-safe animated-pulse" viewBox="0 0 24 24">
+                        <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+                        <path d="M12 6v6l4 2"/>
+                    </svg>
+                </div>
+                <div class="status-text-container">
+                    <div class="label">System Status</div>
+                    <div class="value" id="status-string" style="color: var(--accent-safe);">SYSTEM READY</div>
+                </div>
+            </div>
+
+            <div class="glass-card metric-row">
+                <div class="metric-box">
+                    <div class="label">Current EAR</div>
+                    <div class="metric-num" id="ear-readout">0.00</div>
+                </div>
+                <div class="metric-box">
+                    <div class="label">Current MAR</div>
+                    <div class="metric-num" id="mar-readout">0.00</div>
+                </div>
+            </div>
+
+            <div class="glass-card chart-card">
+                <div class="label" style="margin-bottom: 10px;">Biometric Timeline Tracking</div>
+                <canvas id="telemetryChart"></canvas>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Setup Live Biometric Chart
+        const ctx = document.getElementById('telemetryChart').getContext('2d');
+        const telemetryChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array(20).fill(''),
+                datasets: [
+                    { label: 'EAR', data: Array(20).fill(0), borderColor: '#38bdf8', borderWidth: 2, tension: 0.3, pointRadius: 0 },
+                    { label: 'MAR', data: Array(20).fill(0), borderColor: '#818cf8', borderWidth: 2, tension: 0.3, pointRadius: 0 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: { min: 0, max: 1, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', font: { size: 10 } } }
+                }
+            }
+        });
+
+        // Icons Payload mapping to states
+        const icons = {
+            safe: `<svg class="icon-safe animated-pulse" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>`,
+            yawn: `<svg class="icon-warn" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg>`,
+            danger: `<svg class="icon-danger" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`
+        };
+
+        // Network Data Polling Task
+        setInterval(async () => {
+            try {
+                const response = await fetch('/metrics');
+                const data = await response.json();
+                
+                // Update Numeric Labels
+                document.getElementById('ear-readout').innerText = data.ear.toFixed(2);
+                document.getElementById('mar-readout').innerText = data.mar.toFixed(2);
+                
+                const card = document.getElementById('master-status-card');
+                const text = document.getElementById('status-string');
+                const iconContainer = document.getElementById('dynamic-icon');
+                const wrapper = document.getElementById('video-wrapper');
+
+                // State Machine UI Render Layer
+                if (data.drowsy) {
+                    text.innerText = "CRITICAL: DROWSY";
+                    text.style.color = "var(--accent-danger)";
+                    card.className = "glass-card status-card state-drowsy";
+                    iconContainer.innerHTML = icons.danger;
+                    wrapper.style.borderColor = "var(--accent-danger)";
+                } else if (data.yawn) {
+                    text.innerText = "WARNING: YAWNING";
+                    text.style.color = "var(--accent-warning)";
+                    card.className = "glass-card status-card state-yawn";
+                    iconContainer.innerHTML = icons.yawn;
+                    wrapper.style.borderColor = "var(--accent-warning)";
+                } else {
+                    text.innerText = "DRIVER FOCUS: OPTIMAL";
+                    text.style.color = "var(--accent-safe)";
+                    card.className = "glass-card status-card";
+                    iconContainer.innerHTML = icons.safe;
+                    wrapper.style.borderColor = "var(--border-glow)";
+                }
+
+                // Append Data points to the timeline graph
+                telemetryChart.data.datasets[0].data.push(data.ear);
+                telemetryChart.data.datasets[1].data.push(data.mar);
+                telemetryChart.data.datasets[0].data.shift();
+                telemetryChart.data.datasets[1].data.shift();
+                telemetryChart.update('none'); // Update smoothly without computational lag animation
+
+            } catch (err) {
+                console.error("Telemetry channel synchronization lost:", err);
+            }
+        }, 150);
+    </script>
+</body>
+</html>
